@@ -1,3 +1,4 @@
+//实现连接服务器，beeim.go的，其中192...是我机子的服务器
 package main
 
 import (
