@@ -1,43 +1,67 @@
-//实现连接服务器，beeim.go的，其中192...是我机子的服务器
+// mybeeimClient project main.go
 package main
 
 import (
-	"bytes"
-	"fmt"
-	"io"
+	//"bytes"
+	"client/client"
+	//"fmt"
+	"log"
 	"net"
-	"os"
+	"time"
+
+//	"sync"
+)
+
+const (
+	MAX_Client = 20
+)
+
+var (
+	//datatype   = []byte{0x00, 0x00, 0x00, 0x02}
+	datatype   = uint32(2)
+	datalength = []byte{0x00, 0x00, 0x00, 0x08}
+	data       = []byte{0x12, 0x23, 0x34, 0x45, 0x56, 0x67, 0x78, 0x89}
+	//packket = []byte{ 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x08, 0x12, 0x23, 0x34, 0x45, 0x56, 0x67, 0x78, 0x89 }
 )
 
 func main() {
-	conn, err := net.Dial("tcp", "192.168.0.102:1114")
-	checkError(err)
-	_, err = conn.Write([]byte("HEAD / HTTP/1.0\r\n\r\n"))
-	checkError(err)
-	result, err := readFully(conn)
-	checkError(err)
-	fmt.Println(string(result))
-	os.Exit(0)
-}
-func checkError(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
-		os.Exit(1)
-	}
-}
-func readFully(conn net.Conn) ([]byte, error) {
-	defer conn.Close()
-	result := bytes.NewBuffer(nil)
-	var buf [512]byte
-	for {
-		n, err := conn.Read(buf[0:])
-		result.Write(buf[0:n])
-		if err != nil {
-			if err == io.EOF {
-				break
+	packet := client.NewPacket()
+	packet.SetType(datatype)
+	packet.SetData(data)
+	for i := int(0); i < MAX_Client; i++ {
+		go func() {
+			rpacket := client.NewPacket()
+			var err error
+			conn, err := net.Dial("tcp", "192.168.0.104:1114")
+			if err != nil {
+				log.Println("error connetion:%s", err)
 			}
-			return nil, err
-		}
+			packetR := client.NewPacketReader(conn)
+			packetW := client.NewPacketWriter(conn)
+			for {
+				if err := packetW.WritePacket(packet); err != nil {
+					log.Println("data transfer fail")
+					conn.Close()
+					return
+				}
+				//log.Println("write packet success", packet)
+				if err = packetW.Flush(); err != nil {
+				}
+				time.Sleep(time.Second)
+				rpacket, err = packetR.ReadPacket()
+				if err != nil {
+					log.Println("read errors: %s", err)
+					conn.Close()
+					return
+				}
+				log.Println("Read SuccessPacket successfully and SuccessPacket:=", rpacket)
+				/*if rpacket.GetType() != datatype && bytes.Compare(rpacket.GetData(), data) != 0 {
+					log.Println("rPacket != packet")
+				}*/
+				time.Sleep(time.Second * 10)
+			}
+		}()
 	}
-	return result.Bytes(), nil
+	time.Sleep(time.Hour)
+	return
 }
