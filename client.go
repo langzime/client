@@ -7,6 +7,7 @@ import (
 	//"fmt"
 	"log"
 	"net"
+	"runtime"
 	"time"
 
 //	"sync"
@@ -28,6 +29,7 @@ func main() {
 	packet := client.NewPacket()
 	packet.SetType(datatype)
 	packet.SetData(data)
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	for i := int(0); i < MAX_Client; i++ {
 		go func() {
 			rpacket := client.NewPacket()
