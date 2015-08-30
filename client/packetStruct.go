@@ -19,6 +19,14 @@ const (
 	MaxPacketLength = 0x00ffffff
 )
 
+const (
+	PacketType_GetLoginToken = iota //获取登陆令牌
+	PacketType_Login                //登陆
+	PacketType_GetFList             //得到好友列表
+	PacketType_SendMsg              //发送信息
+	PacketType_Quit                 //退出
+)
+
 var (
 	ErrorDataTransfer = errors.New("packet transfer error!")
 	ErrorDataLength   = errors.New("packet was too long!")

@@ -4,6 +4,8 @@ package main
 import (
 	//"bytes"
 	"github.com/wyq756543431/client/client"
+	"github.com/golang/protobuf/proto"
+	"github.com/wyq756543431/client/client/protos"
 	//"fmt"
 	"log"
 	"net"
@@ -28,6 +30,7 @@ var (
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	PrintInfoList()
 	var err error
 	conn, err := net.Dial("tcp", "127.0.0.1:1114")
 	if err != nil {
@@ -35,10 +38,30 @@ func main() {
 	}
 
 	go ReadRtn(conn)
+	go OutPacketProcessor(conn)
+
 	packet := client.NewPacket()
-	packet.SetType(datatype)
-	packetW := client.NewPacketWriter(conn)
 	for {
+		var data1 = make([]byte, 2048)
+		fmt.Print("请输入你要选择的操作:")
+		_, err := fmt.Scan(&data1)
+		if err != nil {
+			fmt.Println("数据输入异常:", err.Error())
+		}
+		if string(data1)=="1"{
+			fmt.Println("1")
+			packet.SetType(client.PacketType_GetLoginToken)
+			loginToken:=&protos.GetLoginToken{}
+			loginToken.ClientType=proto.String("pc")
+			bytes,err:=proto.Marshal(loginToken)
+			if err!=nil{
+				panic(err)
+			}
+			packet.SetData(bytes)
+			client.OUTQEUE<-*packet
+		}
+	}
+	/*for {
 		var data1 = make([]byte, 2048)
 		fmt.Print("请输入要发送的消息:")
 		n, err := fmt.Scan(&data1)
@@ -47,19 +70,33 @@ func main() {
 		}
 		log.Printf("%d--->%s", n, string(data1))
 		packet.SetData(data1)
-		if err := packetW.WritePacket(packet); err != nil {
-			log.Panicf("data transfer fail\n")
-			//conn.Close()
-		}
-		if err = packetW.Flush(); err != nil {
-			log.Panicln(err)
-		}
-	}
+		client.OUTQEUE<-*packet
+	}*/
 
 }
 
+func OutPacketProcessor(conn net.Conn){
+	log.Printf("Daemon Thread for process out message start \n")
+	packetW := client.NewPacketWriter(conn)
+	for p:=range client.OUTQEUE{
+		if err := packetW.WritePacket(&p); err != nil {
+			log.Panicf("data transfer fail\n")
+			//conn.Close()
+		}
+		if err:= packetW.Flush(); err != nil {
+			log.Panicln(err)
+		}
+	}
+}
+
+func PrintInfoList(){
+	fmt.Println("操作列表")
+	fmt.Println("1 获得登陆token")
+	fmt.Println("2 登陆请求")
+}
+
 func ReadRtn(conn net.Conn) {
-	log.Printf("Daemon Thread for read return message start \n")
+	log.Printf("Daemon Thread for read in message start \n")
 	for {
 		rpacket := client.NewPacket()
 		packetR := client.NewPacketReader(conn)
@@ -68,6 +105,7 @@ func ReadRtn(conn net.Conn) {
 			log.Println("read errors: %s", err)
 			time.Sleep(time.Second*5)
 		}
+		client.INQUEUE<-*rpacket
 		log.Println("Read SuccessPacket successfully and SuccessPacket:=", rpacket)
 	}
 }
