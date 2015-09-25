@@ -39,7 +39,7 @@ func main() {
 
 	go ReadRtn(conn)
 	go OutPacketProcessor(conn)
-
+	go InPacketProcessor(conn)
 	packet := client.NewPacket()
 	for {
 		var data1 = make([]byte, 2048)
@@ -49,7 +49,6 @@ func main() {
 			fmt.Println("数据输入异常:", err.Error())
 		}
 		if string(data1)=="1"{
-			fmt.Println("1")
 			packet.SetType(client.PacketType_GetLoginToken)
 			loginToken:=&protos.GetLoginToken{}
 			loginToken.ClientType=proto.String("pc")
@@ -58,27 +57,16 @@ func main() {
 				panic(err)
 			}
 			packet.SetData(bytes)
-			client.OUTQEUE<-*packet
+			client.OUTQUEUE<-*packet
 		}
 	}
-	/*for {
-		var data1 = make([]byte, 2048)
-		fmt.Print("请输入要发送的消息:")
-		n, err := fmt.Scan(&data1)
-		if err != nil {
-			fmt.Println("数据输入异常:", err.Error())
-		}
-		log.Printf("%d--->%s", n, string(data1))
-		packet.SetData(data1)
-		client.OUTQEUE<-*packet
-	}*/
 
 }
 
 func OutPacketProcessor(conn net.Conn){
 	log.Printf("Daemon Thread for process out message start \n")
 	packetW := client.NewPacketWriter(conn)
-	for p:=range client.OUTQEUE{
+	for p:=range client.OUTQUEUE{
 		if err := packetW.WritePacket(&p); err != nil {
 			log.Panicf("data transfer fail\n")
 			//conn.Close()
@@ -107,5 +95,29 @@ func ReadRtn(conn net.Conn) {
 		}
 		client.INQUEUE<-*rpacket
 		log.Println("Read SuccessPacket successfully and SuccessPacket:=", rpacket)
+	}
+}
+
+
+func InPacketProcessor(conn net.Conn){
+	log.Printf("Daemon Thread for process in message start \n")
+	for p:=range client.INQUEUE{
+		if p.GetType()==client.PacketType_GetLoginToken{
+			rdata:=&protos.GetLoginTokenRtn{}
+			err:=proto.Unmarshal(p.GetData(),rdata)
+			if err!=nil{
+				log.Panicln(err)
+				continue
+			}
+			log.Printf("%s",*rdata.TokenId)
+		}else if p.GetType()==client.PacketType_Login{
+			rdata:=&protos.GetLoginTokenRtn{}
+			err:=proto.Unmarshal(p.GetData(),rdata)
+			if err!=nil{
+				log.Panicln(err)
+				continue
+			}
+			log.Printf("%s",*rdata.TokenId)
+		}
 	}
 }
