@@ -4,8 +4,6 @@ package main
 import (
 	//"bytes"
 	"github.com/wyq756543431/client/client"
-	"github.com/golang/protobuf/proto"
-	"github.com/wyq756543431/client/client/protos"
 	//"fmt"
 	"log"
 	"net"
@@ -30,7 +28,6 @@ var (
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	PrintInfoList()
 	var err error
 	conn, err := net.Dial("tcp", "127.0.0.1:1114")
 	if err != nil {
@@ -48,17 +45,8 @@ func main() {
 		if err != nil {
 			fmt.Println("数据输入异常:", err.Error())
 		}
-		if string(data1)=="1"{
-			packet.SetType(client.PacketType_GetLoginToken)
-			loginToken:=&protos.GetLoginToken{}
-			loginToken.ClientType=proto.String("pc")
-			bytes,err:=proto.Marshal(loginToken)
-			if err!=nil{
-				panic(err)
-			}
-			packet.SetData(bytes)
-			client.OUTQUEUE<-*packet
-		}
+		packet.SetData(data1)
+		client.OUTQUEUE<-*packet
 	}
 
 }
@@ -102,22 +90,6 @@ func ReadRtn(conn net.Conn) {
 func InPacketProcessor(conn net.Conn){
 	log.Printf("Daemon Thread for process in message start \n")
 	for p:=range client.INQUEUE{
-		if p.GetType()==client.PacketType_GetLoginToken{
-			rdata:=&protos.GetLoginTokenRtn{}
-			err:=proto.Unmarshal(p.GetData(),rdata)
-			if err!=nil{
-				log.Panicln(err)
-				continue
-			}
-			log.Printf("%s",*rdata.TokenId)
-		}else if p.GetType()==client.PacketType_Login{
-			rdata:=&protos.GetLoginTokenRtn{}
-			err:=proto.Unmarshal(p.GetData(),rdata)
-			if err!=nil{
-				log.Panicln(err)
-				continue
-			}
-			log.Printf("%s",*rdata.TokenId)
-		}
+		log.Println(p.GetData())
 	}
 }
